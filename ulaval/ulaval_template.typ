@@ -292,15 +292,16 @@
 }
 
 // ============================================================================
-// TWO THIRDS / ONE THIRD SLIDE (Content + Image)
+// SPLIT SLIDE (Content + Image, configurable ratio)
 // ============================================================================
-#let two-thirds-slide(
+#let split-slide(
   title: none,
   subtitle: none,
   section: none,  // Pass to register a new section at this slide (replaces standalone = Heading)
   content,
   image: none,
-  image-position: "right"  // "right" or "left"
+  image-position: "right",  // "right" or "left"
+  ratio: (2, 1)  // (content-parts, image-parts), e.g. (2,1) for 2/3–1/3, (1,1) for half-half
 ) = {
   pagebreak(weak: true)
 
@@ -316,18 +317,19 @@
   }
   if title != none or subtitle != none { v(0.5em) }
 
-  // Two columns: content (2/3) + image (1/3)
+  // Two columns with configurable ratio
   if image != none {
+    let (content-fr, image-fr) = ratio
     if image-position == "right" {
       grid(
-        columns: (2fr, 1fr),
+        columns: (content-fr * 1fr, image-fr * 1fr),
         gutter: 1em,
         align(left + top, content),
         align(center + top, image)
       )
     } else {
       grid(
-        columns: (1fr, 2fr),
+        columns: (image-fr * 1fr, content-fr * 1fr),
         gutter: 1em,
         align(center + top, image),
         align(left + top, content)
@@ -336,6 +338,80 @@
   } else {
     content
   }
+}
+
+// ============================================================================
+// QUOTE SLIDE (Portrait + Quotation, two-thirds layout)
+// ============================================================================
+#let quote-slide(
+  section: none,
+  portrait: none,            // image() content for the author portrait
+  author: none,              // author name string
+  birth-year: none,          // integer or string
+  death-year: none,          // integer or string
+  source-title: none,        // source work title string
+  source-year: none,         // source publication year
+  portrait-position: "left", // "left" or "right"
+  quote                      // the quotation (positional, last)
+) = {
+  pagebreak(weak: true)
+
+  if section != none { heading(level: 1, section) }
+
+  // Build the years line: "1632 — 1704"
+  let years-str = if birth-year != none and death-year != none {
+    str(birth-year) + " — " + str(death-year)
+  } else if birth-year != none {
+    str(birth-year)
+  } else if death-year != none {
+    (death-year)
+  } else { none }
+
+  layout(size => {
+    // Reserve ~3em for author name + years below the portrait
+    let img-h = size.height - 3em
+
+    let portrait-panel = align(center,
+      stack(dir: ttb, spacing: 0.5em,
+        {
+          set image(height: img-h, fit: "contain")
+          if portrait != none { portrait } else { [] }
+        },
+        if author != none { text(weight: "bold", author) } else { [] },
+        if years-str != none { text(size: 0.85em, fill: ulaval-gray, years-str) } else { [] }
+      )
+    )
+
+    let quote-panel = align(center + horizon)[
+      #text(size: 1.15em, style: "italic")[#quote]
+      #if source-title != none or source-year != none [
+        #v(1em)
+        #text(size: 0.85em, fill: ulaval-gray, style: "italic")[
+          #if source-title != none { source-title }
+          #if source-title != none and source-year != none { ", " }
+          #if source-year != none { str(source-year) }
+        ]
+      ]
+    ]
+
+    if portrait-position == "left" {
+      grid(
+        columns: (1fr, 2fr),
+        rows: (size.height,),
+        gutter: 1.5em,
+        portrait-panel,
+        quote-panel
+      )
+    } else {
+      grid(
+        columns: (2fr, 1fr),
+        rows: (size.height,),
+        gutter: 1.5em,
+        quote-panel,
+        portrait-panel
+      )
+    }
+  })
 }
 
 // ============================================================================
@@ -539,7 +615,7 @@
 
   // Content pages
   set page(
-    margin: (top: 38pt, bottom: 1.5cm, x: 1.2cm),
+    margin: (top: 38pt, bottom: 2.5cm, x: 1.2cm),
     header-ascent: 8pt,
     header: context {
       let pg = counter(page).get().first()
